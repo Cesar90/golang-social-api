@@ -1,6 +1,6 @@
 # GopherSocial
 
-Backend API for a social network built with Go, PostgreSQL, Docker, Swagger, and golang-migrate.
+Backend API for a social network built with **Go**, **PostgreSQL**, **Docker**, **Redis**, **Swagger**, and **golang-migrate**.
 
 ## Tech Stack
 
@@ -17,8 +17,8 @@ Make sure you have the following installed:
 
 * [Go 1.27+](https://go.dev/)
 * [Docker](https://www.docker.com/)
-* [golang-migrate](https://github.com/golang-migrate/migrate) — required for migrations
-* [swag](https://github.com/swaggo/swag) — required only when regenerating Swagger docs
+* [golang-migrate](https://github.com/golang-migrate/migrate) — required for database migrations
+* [swag](https://github.com/swaggo/swag) — required only when regenerating Swagger documentation
 
 ## Getting Started
 
@@ -35,31 +35,46 @@ Start PostgreSQL and Redis:
 docker compose up -d
 ```
 
+Apply the database migrations:
+
+```bash
+make migrate-up
+```
+
 Run the API:
 
 ```bash
 go run ./cmd/api
 ```
 
-The API listens on `http://localhost:8080` by default.
+The API listens on:
+
+```text
+http://localhost:8080
+```
 
 ## Database
 
-PostgreSQL runs inside Docker on port `5432`.
+PostgreSQL runs inside Docker and is exposed on port `5432`.
 
 The default development connection string used by the application is:
 
 ```env
-DB_ADDR=postgres://admin:adminpassword@localhost/socialnetwork?sslmode=disable
+DB_ADDR=postgres://admin:adminpassword@localhost:5432/socialnetwork?sslmode=disable
 ```
 
 The Docker Compose configuration creates:
 
-* database: `socialnetwork`
-* user: `admin`
-* password: `adminpassword`
+| Setting  | Value           |
+| -------- | --------------- |
+| Database | `socialnetwork` |
+| User     | `admin`         |
+| Password | `adminpassword` |
+| Port     | `5432`          |
 
-Redis is exposed on port `6379`. It is disabled by default in the application and can be enabled with:
+Redis is exposed on port `6379`.
+
+It is disabled by default in the application and can be enabled with:
 
 ```env
 REDIS_ADDR=localhost:6379
@@ -68,11 +83,72 @@ REDIS_ENABLED=true
 
 ## Database Migrations
 
-Database migrations are managed with **golang-migrate** and stored in:
+Database migrations are managed with [golang-migrate](https://github.com/golang-migrate/migrate) and stored in:
 
 ```text
 ./cmd/migrate/migrations
 ```
+
+### Windows
+
+If you are running the project on Windows, you can execute migrations directly from PowerShell.
+
+Apply all pending migrations:
+
+```powershell
+migrate -path ./cmd/migrate/migrations -database "postgres://admin:adminpassword@localhost:5432/socialnetwork?sslmode=disable" up
+```
+
+Check the current migration version:
+
+```powershell
+migrate -path ./cmd/migrate/migrations -database "postgres://admin:adminpassword@localhost:5432/socialnetwork?sslmode=disable" version
+```
+
+Rollback the latest migration:
+
+```powershell
+migrate -path ./cmd/migrate/migrations -database "postgres://admin:adminpassword@localhost:5432/socialnetwork?sslmode=disable" down 1
+```
+
+Create a new migration:
+
+```powershell
+migrate create -seq -ext sql -dir ./cmd/migrate/migrations <migration_name>
+```
+
+For example:
+
+```powershell
+migrate create -seq -ext sql -dir ./cmd/migrate/migrations create_users
+```
+
+This generates two files:
+
+```text
+cmd/migrate/migrations/
+├── 000001_create_users.up.sql
+└── 000001_create_users.down.sql
+```
+
+The `up.sql` file contains the changes required to apply the migration:
+
+```sql
+CREATE TABLE users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(255) NOT NULL
+);
+```
+
+The `down.sql` file contains the changes required to undo it:
+
+```sql
+DROP TABLE users;
+```
+
+### Using Make
+
+If `make` is available in your development environment, the same operations can be performed through the `Makefile`.
 
 Run all pending migrations:
 
@@ -80,19 +156,23 @@ Run all pending migrations:
 make migrate-up
 ```
 
-Rollback migrations:
+Rollback one migration:
 
 ```bash
-make migrate-down 1
+make migrate-down n=1
 ```
 
 Create a new migration:
 
 ```bash
-make migration <migration_name>
+make migration name=<migration_name>
 ```
 
-This creates migration files under `cmd/migrate/migrations/`.
+For example:
+
+```bash
+make migration name=create_users
+```
 
 Seed the database:
 
@@ -110,7 +190,7 @@ Once the application is running, Swagger UI is available at:
 http://localhost:8080/v1/swagger/index.html
 ```
 
-Regenerate the Swagger docs with:
+Regenerate the Swagger documentation with:
 
 ```bash
 make gen-docs
@@ -131,6 +211,19 @@ make migrate-up
 go run ./cmd/api
 ```
 
+On Windows without `make`:
+
+```powershell
+# Start PostgreSQL and Redis
+docker compose up -d
+
+# Apply migrations
+migrate -path ./cmd/migrate/migrations -database "postgres://admin:adminpassword@localhost:5432/socialnetwork?sslmode=disable" up
+
+# Start the API
+go run ./cmd/api
+```
+
 Run the test suite with:
 
 ```bash
@@ -139,15 +232,16 @@ make test
 
 ## Project Structure
 
-The reference project is organized like this:
+The project is organized as follows:
 
 ```text
 .
 ├── cmd/
-│   ├── api/              # HTTP API entrypoint and handlers
-│   └── migrate/          # migrations and seed command
-├── docs/                 # generated Swagger documentation
-├── internal/             # application packages
+│   ├── api/                  # HTTP API entrypoint and handlers
+│   └── migrate/
+│       └── migrations/       # SQL database migrations
+├── docs/                     # generated Swagger documentation
+├── internal/                 # application packages
 ├── scripts/
 ├── web/
 ├── .air.toml
@@ -165,7 +259,40 @@ The reference project is organized like this:
 | ---------------- | -------------------------- |
 | Go 1.27          | Backend development        |
 | Docker           | Containerization           |
-| PostgreSQL       | Relational database        |
-| Redis            | Optional caching           |
+| PostgreSQL 16.3  | Relational database        |
+| Redis 6.2        | Optional caching           |
 | Swagger / swaggo | API documentation          |
 | golang-migrate   | Database schema migrations |
+
+## Useful Commands
+
+```bash
+# Start services
+docker compose up -d
+
+# Stop services
+docker compose down
+
+# Run API
+go run ./cmd/api
+
+# Apply migrations
+make migrate-up
+
+# Rollback migration
+make migrate-down n=1
+
+# Create migration
+make migration name=create_users
+
+# Seed database
+make seed
+
+# Generate Swagger documentation
+make gen-docs
+
+# Run tests
+make test
+```
+
+For Windows users without `make`, the equivalent migration commands can be executed directly with the `migrate` CLI as shown in the **Database Migrations** section.
