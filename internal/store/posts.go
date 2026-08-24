@@ -38,7 +38,7 @@ func (s *PostsStore) Create(ctx context.Context, post *Post) error {
 		post.Content,
 		post.Title,
 		post.UserID,
-		post.Tags,
+		// post.Tags,
 		pq.Array(post.Tags),
 	).Scan(
 		&post.ID,
