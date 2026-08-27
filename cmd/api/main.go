@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/Cesar90/golang-social-api/internal/db"
 	"github.com/Cesar90/golang-social-api/internal/env"
 	"github.com/Cesar90/golang-social-api/internal/store"
@@ -35,6 +37,9 @@ func main() {
 			maxIdleTime:  env.GetString("DB_MAX_IDLE_TIME", "15m"),
 		},
 		env: env.GetString("ENV", "development"),
+		mail: mailConfig{
+			exp: time.Hour * 24 * 3, //3 days
+		},
 	}
 
 	// Logger
