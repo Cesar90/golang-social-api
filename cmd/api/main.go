@@ -10,10 +10,25 @@ import (
 
 const version = "0.0.1"
 
+//	@title			Golang Social
+//	@version		1.0
+//	@description	This is a sample server.
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	API Support
+//	@contact.url	http://www.swagger.io/support
+//	@contact.email	support@swagger.io
+
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host		petstore.swagger.io
+// @BasePath	/v1
 func main() {
 	cfg := config{
 		// addr: ":8080",
-		addr: env.GetString("ADDR", ":8080"),
+		apiURL: env.GetString("ADDR", ":8080"),
+		addr:   env.GetString("ADDR", ":8080"),
 		db: dbConfig{
 			addr:         env.GetString("DB_ADDR", "postgres://postgres:postgres@localhost/social?sslmode=disable"),
 			maxOpenConns: env.GetInt("DB_MAX_OPEN_CONNS", 30),
