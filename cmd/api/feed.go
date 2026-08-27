@@ -20,7 +20,7 @@ import (
 //	@Param			sort	query		string	false	"Sort"
 //	@Param			tags	query		string	false	"Tags"
 //	@Param			search	query		string	false	"Search"
-//	@Success		200		{object}	[]store.PostWithMetadata
+//	@Success		200		{object}	[]store.PostWithMedata
 //	@Failure		400		{object}	error
 //	@Failure		500		{object}	error
 //	@Security		ApiKeyAuth
