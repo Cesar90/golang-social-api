@@ -27,7 +27,7 @@ const version = "0.0.1"
 func main() {
 	cfg := config{
 		// addr: ":8080",
-		apiURL: env.GetString("ADDR", ":8080"),
+		apiURL: env.GetString("EXTERNAL_URL", "localhost:8080"),
 		addr:   env.GetString("ADDR", ":8080"),
 		db: dbConfig{
 			addr:         env.GetString("DB_ADDR", "postgres://postgres:postgres@localhost/social?sslmode=disable"),
