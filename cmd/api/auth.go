@@ -3,9 +3,11 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"uuid"
 
+	"github.com/Cesar90/golang-social-api/internal/mailer"
 	"github.com/Cesar90/golang-social-api/internal/store"
 )
 
@@ -81,29 +83,32 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		Token: plainToken,
 	}
 
-	// activationURL := fmt.Sprintf("%s/confirm/%s", app.config.frontendURL, plainToken)
+	activationURL := fmt.Sprintf("%s/confirm/%s", app.config.frontendURL, plainToken)
 
-	// isProdEnv := app.config.env == "production"
-	// vars := struct {
-	// 	Username      string
-	// 	ActivationURL string
-	// }{
-	// 	Username:      user.Username,
-	// 	ActivationURL: activationURL,
-	// }
+	isProdEnv := app.config.env == "production"
+	vars := struct {
+		Username      string
+		ActivationURL string
+	}{
+		Username:      user.Username,
+		ActivationURL: activationURL,
+	}
 
-	// err = app.mailer.Send(mailer.UserWelcomeTemplate, user.Username, user.Email, vars, !isProdEnv)
-	// if err != nil {
-	// 	app.logger.Errorw("error sending welcome", "error", err)
+	// send mail
+	status, err := app.mailer.Send(mailer.UserWelcomeTemplate, user.Username, user.Email, vars, !isProdEnv)
+	if err != nil {
+		app.logger.Errorw("error sending welcome email", "error", err)
 
-	// 	// rollback user creation if email fails (SAGA pattern)
-	// 	if err := app.store.Users.Delete(ctx, user.ID); err != nil {
-	// 		app.logger.Errorw("Error deleting user", "error", err)
-	// 	}
+		// rollback user creation if email fails (SAGA pattern)
+		if err := app.store.Users.Delete(ctx, user.ID); err != nil {
+			app.logger.Errorw("error deleting user", "error", err)
+		}
 
-	// 	app.internalServerError(w, r, err)
-	// 	return
-	// }
+		app.internalServerError(w, r, err)
+		return
+	}
+
+	app.logger.Infow("Email sent", "status code", status)
 
 	if err := app.jsonResponse(w, http.StatusCreated, userWithToken); err != nil {
 		app.internalServerError(w, r, err)
