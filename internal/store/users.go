@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"time"
 
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -62,15 +64,29 @@ func (s *UserStore) Create(ctx context.Context, tx *sql.Tx, user *User) error {
 		&user.CreatedAt,
 	)
 
+	// if err != nil {
+	// 	switch {
+	// 	case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+	// 		return ErrDuplicateEmail
+	// 	case err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"`:
+	// 		return ErrDuplicateUsername
+	// 	default:
+	// 		return err
+	// 	}
+	// }
 	if err != nil {
-		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
-			return ErrDuplicateEmail
-		case err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"`:
-			return ErrDuplicateUsername
-		default:
-			return err
+		var pqErr *pq.Error
+
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			switch pqErr.Constraint {
+			case "users_email_key":
+				return ErrDuplicateEmail
+			case "users_username_key":
+				return ErrDuplicateUsername
+			}
 		}
+
+		return err
 	}
 
 	return nil
@@ -220,5 +236,32 @@ func (s *UserStore) deleteUserInvitation(ctx context.Context, tx *sql.Tx, userID
 		return err
 	}
 
+	return nil
+}
+
+func (s *UserStore) Delete(ctx context.Context, userID int64) error {
+	return withTx(s.db, ctx, func(tx *sql.Tx) error {
+		if err := s.delete(ctx, tx, userID); err != nil {
+			return err
+		}
+
+		if err := s.deleteUserInvitation(ctx, tx, userID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (s *UserStore) delete(ctx context.Context, tx *sql.Tx, id int64) error {
+	query := `DELETE FROM users WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	_, err := tx.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
 	return nil
 }
